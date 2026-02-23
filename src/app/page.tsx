@@ -279,29 +279,42 @@ export default function OhadaChatPage() {
       {/* SIDEBAR FOR CHAT HISTORY */}
       {user && !isAdmin && activeTab === 'chat' && (
         <aside className="w-64 bg-[#1a1c23] border-r border-[#2d2f39] hidden md:flex flex-col text-white">
-          <div className="p-4 border-b border-[#2d2f39]">
-            <button
-              className="btn btn-auth-primary w-full flex items-center justify-center gap-2"
-              onClick={clearHistory}
-            >
-              <Plus className="w-4 h-4" /> NOUVEAU CHAT
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {chatSessions.map(session => (
-              <button
-                key={session.id}
-                onClick={() => {
-                  setMessages(session.messages);
-                  setCurrentSessionId(session.id);
-                }}
-                className={`w-full text-left p-3 rounded-lg text-sm truncate transition-colors ${currentSessionId === session.id ? 'bg-primary/20 text-primary font-bold' : 'hover:bg-[#2d2f39] text-gray-300'}`}
-              >
-                {session.title}
-              </button>
-            ))}
-          </div>
-        </aside>
+  <div className="p-4 border-b border-[#2d2f39]">
+    <button className="btn btn-auth-primary w-full flex items-center justify-center gap-2" onClick={clearHistory}>
+      <Plus className="w-4 h-4" /> NOUVEAU CHAT
+    </button>
+  </div>
+  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+    {chatSessions.map(session => (
+      <div key={session.id} className="group relative">
+        <button
+          onClick={() => {
+            setMessages(session.messages);
+            setCurrentSessionId(session.id);
+          }}
+          className={`w-full text-left p-3 rounded-lg text-sm truncate transition-colors pr-10 ${currentSessionId === session.id ? 'bg-primary/20 text-primary font-bold' : 'hover:bg-[#2d2f39] text-gray-300'}`}
+        >
+          {session.title}
+        </button>
+        {/* BOUTON SUPPRIMER (POUBELLE) */}
+        <button 
+          onClick={async (e) => {
+            e.stopPropagation();
+            const { error } = await supabase.from('chat_history').delete().eq('id', session.id);
+            if (!error) {
+              setChatSessions(prev => prev.filter(s => s.id !== session.id));
+              if (currentSessionId === session.id) clearHistory();
+              showToast("Discussion supprimée", "success");
+            }
+          }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+</aside>
       )}
 
       {/* MAIN LAYOUT WRAPPER */}
@@ -360,173 +373,82 @@ export default function OhadaChatPage() {
           {/* USER VIEWS */}
           {!isAdmin && (
             <>
-              {/* CHAT TAB */}
-              {activeTab === 'chat' && (
-                <div className="flex flex-col h-full">
-                  {/* <div className="chat-toolbar sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border-light p-4 flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <PdfUploader />
-                    </div>
-                  </div> */}
+             {activeTab === 'chat' && (
+  <div className="flex flex-col h-full">
+    {/* ZONE DES MESSAGES - STYLE GEMINI */}
+    <div className="chat-area flex-1 overflow-y-auto p-6 pb-32 flex flex-col gap-6 scroll-smooth" 
+         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <style>{`.chat-area::-webkit-scrollbar { display: none; }`}</style>
 
-                  <div className="chat-area flex-1 overflow-y-auto p-6 pb-32">
-                    {messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 h-full">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md">
-                          <Scale className="w-8 h-8 text-primary" />
-                        </div>
-                        <h2 className="text-2xl font-bold font-headline text-primary">Comment puis-je vous aider ?</h2>
-                        <p className="text-text-gray max-w-sm">Posez votre question sur le droit des affaires OHADA en Guinée.</p>
-                      </div>
-                    ) : (
-                      [...messages].reverse().map((m) => (
-                        <div key={m.id} className={`message ${m.role === 'user' ? 'user' : 'assistant'}`}>
-                          <div className="message-avatar">
-                            {m.role === 'assistant' ? <Scale className="w-5 h-5 text-white" /> : ((user?.firstName?.[0] || '?') + (user?.lastName?.[0] || '?')).toUpperCase()}
-                          </div>
-                          <div className="message-content">
-                            <div className="message-bubble">{m.content}</div>
+      {messages.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 h-full">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md">
+            <Scale className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold font-headline text-primary">Comment puis-je vous aider ?</h2>
+          <p className="text-text-gray max-w-sm">Posez votre question sur le droit des affaires OHADA en Guinée.</p>
+        </div>
+      ) : (
+        <>
+          {/* ORDRE CHRONOLOGIQUE STRICT (SANS REVERSE) */}
+          {messages.map((m) => (
+            <div key={m.id} className={`message ${m.role === 'user' ? 'user' : 'assistant'}`}>
+              <div className="message-avatar">
+                {m.role === 'assistant' ? <Scale className="w-5 h-5 text-white" /> : ((user?.firstName?.[0] || '?') + (user?.lastName?.[0] || '?')).toUpperCase()}
+              </div>
+              <div className="message-content">
+                <div className="message-bubble">{m.content}</div>
 
-                            {m.role === 'assistant' && m.data && (
-                              <div className="mt-4 space-y-4">
-                                {/* INFO CARDS */}
-                                {(m.data.checklist || m.data.risks) && (
-                                  <div className="info-cards">
-                                    {m.data.checklist && m.data.checklist.length > 0 && (
-                                      <div className="info-card">
-                                        <div className="info-card-header success flex items-center gap-2">
-                                          <Check className="w-4 h-4" /> CHECKLIST ACTIONS
-                                        </div>
-                                        <ul>
-                                          {m.data.checklist.map((item: string, i: number) => (
-                                            <li key={i}><span className="number">{i + 1}</span> {item}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {m.data.risks && m.data.risks.length > 0 && (
-                                      <div className="info-card warning-card">
-                                        <div className="info-card-header warning flex items-center gap-2">
-                                          <AlertTriangle className="w-4 h-4" /> RISQUES MAJEURS
-                                        </div>
-                                        <ul>
-                                          {m.data.risks.map((item: string, i: number) => (
-                                            <li key={i}><span className="warning-icon text-error-red">⚠</span> {item}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* JURISPRUDENCE */}
-                                {m.data.similar_cases && m.data.similar_cases.length > 0 && (
-                                  <div className="jurisprudence-section">
-                                    <div className="jurisprudence-header flex items-center gap-2">
-                                      <FileText className="w-4 h-4" /> JURISPRUDENCE TROUVÉE
-                                    </div>
-                                    {m.data.similar_cases.map((c: any, i: number) => (
-                                      <div key={i} className="jurisprudence-card mt-2">
-                                        <div className="jurisprudence-title">{c.title}</div>
-                                        <div className="jurisprudence-ref">REF: {c.case_id}</div>
-                                        <div className="jurisprudence-text">{c.reason}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* INVESTIGATION */}
-                                {m.data.directions && m.data.directions.length > 0 && (
-                                  <div className="investigation-section flex items-center gap-2">
-                                    <Navigation className="w-4 h-4" />
-                                    <span>PISTES D'INVESTIGATION : {m.data.directions.join(', ')}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                    {isStreaming && object && (
-                      <div className="message assistant">
-                        <div className="message-avatar"><Scale className="w-5 h-5 text-white" /></div>
-                        <div className="message-content">
-                          <div className="message-bubble">{object.assistant_message || '...'}</div>
-
-                          {object.data && (
-                            <div className="mt-4 space-y-4">
-                              {/* INFO CARDS */}
-                              {((object.data.checklist?.length ?? 0) > 0 || (object.data.risks?.length ?? 0) > 0) && (
-                                <div className="info-cards">
-                                  {object.data.checklist && object.data.checklist.length > 0 && (
-                                    <div className="info-card">
-                                      <div className="info-card-header success flex items-center gap-2">
-                                        <Check className="w-4 h-4" /> CHECKLIST ACTIONS
-                                      </div>
-                                      <ul>
-                                        {object.data.checklist.map((item: string | undefined, i: number) => (
-                                          <li key={i}><span className="number">{i + 1}</span> {item}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                  {object.data.risks && object.data.risks.length > 0 && (
-                                    <div className="info-card warning-card">
-                                      <div className="info-card-header warning flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4" /> RISQUES MAJEURS
-                                      </div>
-                                      <ul>
-                                        {object.data.risks.map((item: string | undefined, i: number) => (
-                                          <li key={i}><span className="warning-icon text-error-red">⚠</span> {item}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* JURISPRUDENCE */}
-                              {object.data.similar_cases && object.data.similar_cases.length > 0 && (
-                                <div className="jurisprudence-section">
-                                  <div className="jurisprudence-header flex items-center gap-2">
-                                    <FileText className="w-4 h-4" /> JURISPRUDENCE TROUVÉE
-                                  </div>
-                                  {object.data.similar_cases.map((c: any, i: number) => (
-                                    <div key={i} className="jurisprudence-card mt-2">
-                                      <div className="jurisprudence-title">{c.title || '...'}</div>
-                                      <div className="jurisprudence-ref">REF: {c.case_id || '...'}</div>
-                                      <div className="jurisprudence-text">{c.reason || '...'}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {/* INVESTIGATION */}
-                              {object.data.directions && object.data.directions.length > 0 && (
-                                <div className="investigation-section flex items-center gap-2">
-                                  <Navigation className="w-4 h-4" />
-                                  <span>PISTES D'INVESTIGATION : {object.data.directions.join(', ')}</span>
-                                </div>
-                              )}
+                {/* DATA JURIDIQUE : TABLE CASE ET ANALYSE */}
+                {m.role === 'assistant' && m.data && (
+                  <div className="mt-4 space-y-4">
+                    {(m.data.checklist || m.data.risks) && (
+                      <div className="info-cards">
+                        {m.data.checklist?.map((item: string, i: number) => (
+                          <div key={i} className="info-card">
+                            <div className="info-card-header success flex items-center gap-2">
+                              <Check className="w-4 h-4" /> ACTION {i + 1}
                             </div>
-                          )}
-                        </div>
+                            <p className="p-3 text-sm">{item}</p>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {(isLoading || (isStreaming && !object)) && (
-                      <div className="message assistant">
-                        <div className="message-avatar"><Scale className="w-5 h-5 text-white" /></div>
-                        <div className="message-content">
-                          <div className="message-bubble"><div className="loading-spinner"><span></span><span></span><span></span></div></div>
+                    {m.data.similar_cases?.length > 0 && (
+                      <div className="jurisprudence-section p-4 bg-primary/5 rounded-xl border border-primary/10">
+                        <div className="jurisprudence-header flex items-center gap-2 mb-3 font-bold text-primary">
+                          <FileText className="w-4 h-4" /> PRÉCÉDENTS (TABLE CASE)
                         </div>
+                        {m.data.similar_cases.map((c: any, i: number) => (
+                          <div key={i} className="bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-primary">
+                            <div className="font-bold text-sm">{c.title}</div>
+                            <div className="text-xs text-text-gray mt-1 italic">{c.reason}</div>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    <div ref={scrollRef} style={{ float: 'left', clear: 'both' }} />
                   </div>
+                )}
+              </div>
+            </div>
+          ))}
 
-                </div>
-              )}
+          {/* STREAMING : LA RÉPONSE EN TRAIN DE S'ÉCRIRE */}
+          {isStreaming && object && (
+            <div className="message assistant">
+              <div className="message-avatar"><Scale className="w-5 h-5 text-white" /></div>
+              <div className="message-content">
+                <div className="message-bubble">{object.assistant_message || '...'}</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      {/* ANCRE POUR LE SCROLL AUTOMATIQUE */}
+      <div ref={scrollRef} className="h-2 w-full clear-both" />
+    </div>
+  </div>
+)}
 
               {/* SUBSCRIPTION TAB */}
               {activeTab === 'subscription' && (
@@ -683,4 +605,16 @@ export default function OhadaChatPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Posez votre question sur le droit OHADA..."
-          
+                  disabled={isLoading || isStreaming}
+                />
+                <button type="submit" className="send-btn" disabled={isLoading || isStreaming || !input.trim()}>
+                  <Send className="w-6 h-6 text-white" />
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

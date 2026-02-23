@@ -35,6 +35,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb", // Augmente la limite à 10 Mo
     },
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.vercel.app;",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
