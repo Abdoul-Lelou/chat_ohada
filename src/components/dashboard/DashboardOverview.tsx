@@ -39,6 +39,7 @@ export function DashboardOverview({ user }: { user: any }) {
                         title="Cabinets Inscrits"
                         value={stats.companiesCount}
                         icon={<Building className="w-6 h-6" />}
+                        variant="primary"
                     />
                 )}
                 <StatsCard
@@ -46,13 +47,15 @@ export function DashboardOverview({ user }: { user: any }) {
                     value={stats.activeUsers}
                     description={`Sur ${stats.totalUsers} au total`}
                     icon={<Users className="w-6 h-6" />}
+                    variant="success"
                 />
                 {isSuperAdmin ? (
                     <StatsCard
                         title="Trafic RAG Global"
                         value={stats.recentLogs?.length || 0}
-                        description="Interactions IA récentes (10 max affichées)"
+                        description="Interactions IA récentes"
                         icon={<Cpu className="w-6 h-6" />}
+                        variant="info"
                     />
                 ) : (
                     <StatsCard
@@ -60,6 +63,7 @@ export function DashboardOverview({ user }: { user: any }) {
                         value={`${stats.companyInfo?.requests_used || 0} / ${stats.companyInfo?.requests_limit || 0}`}
                         description="Requêtes mensuelles"
                         icon={<Scale className="w-6 h-6" />}
+                        variant={((stats.companyInfo?.requests_used || 0) / (stats.companyInfo?.requests_limit || 1)) > 0.8 ? 'error' : 'warning'}
                         trend={{
                             value: Math.round(((stats.companyInfo?.requests_used || 0) / (stats.companyInfo?.requests_limit || 1)) * 100),
                             isPositive: false

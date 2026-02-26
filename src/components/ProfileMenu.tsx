@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Shield, LogOut, ChevronDown, Check, AlertCircle } from 'lucide-react';
+import { User, Shield, LogOut, ChevronDown, Check, AlertCircle, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import ChangePasswordModal from './ChangePasswordModal';
+import ProfileSettingsModal from './ProfileSettingsModal';
 
 interface ProfileMenuProps {
     user: any;
@@ -12,7 +12,7 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
@@ -56,11 +56,11 @@ export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
                     </div>
 
                     <button
-                        onClick={() => { setIsOpen(false); setIsPasswordModalOpen(true); }}
+                        onClick={() => { setIsOpen(false); setIsSettingsOpen(true); }}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                        <Shield className="w-4 h-4 text-primary" />
-                        <span>Sécurité & Mot de passe</span>
+                        <Settings className="w-4 h-4 text-primary" />
+                        <span>Paramètres du Profil</span>
                     </button>
 
                     <div className="border-t border-gray-100 my-1"></div>
@@ -75,10 +75,11 @@ export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
                 </div>
             )}
 
-            {isPasswordModalOpen && (
-                <ChangePasswordModal
-                    isOpen={isPasswordModalOpen}
-                    onClose={() => setIsPasswordModalOpen(false)}
+            {isSettingsOpen && (
+                <ProfileSettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    user={user}
                 />
             )}
         </div>

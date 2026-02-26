@@ -70,6 +70,16 @@ export async function POST(req: NextRequest) {
                 role: targetRole,
                 is_active: true,
             }).eq('id', newUser.user.id);
+
+            // AUDIT LOG
+            const { data: { user: adminUser } } = await supabaseAdmin.auth.getUser();
+            await supabaseAdmin.from('admin_actions_log').insert({
+                admin_id: adminUser?.id,
+                action_type: 'CREATE_USER',
+                target_user_id: newUser.user.id,
+                company_id: targetCompanyId,
+                metadata: { role: targetRole, email }
+            });
         }
 
         return NextResponse.json({ user: newUser.user }, { status: 201 });
@@ -88,17 +98,25 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 });
         }
 
-        // Vérifier que l'admin manipule bien un utilisateur de son entreprise
-        if (role === 'admin') {
-            const { data: targetUser } = await supabase
-                .from('profiles')
-                .select('company_id')
-                .eq('id', user_id)
-                .single();
+        // RÉCUPÉRER LES INFOS DE LA CIBLE POUR LE GUARD ET LE LOG
+        const { data: targetUser } = await supabase
+            .from('profiles')
+            .select('company_id, role')
+            .eq('id', user_id)
+            .single();
 
-            if (!targetUser || targetUser.company_id !== companyId) {
-                return NextResponse.json({ error: 'Accès refusé. L\'utilisateur n\'appartient pas à votre entreprise.' }, { status: 403 });
-            }
+        if (!targetUser) {
+            return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+        }
+
+        // HARD GUARD: Seul un super_admin peut modifier un autre super_admin
+        if (targetUser.role === 'super_admin' && role !== 'super_admin') {
+            return NextResponse.json({ error: 'Action interdite sur un compte Super Admin' }, { status: 403 });
+        }
+
+        // MULTI-TENANT GUARD: Admin ne travaille que sur sa company
+        if (role === 'admin' && targetUser.company_id !== companyId) {
+            return NextResponse.json({ error: 'Accès refusé. L\'utilisateur n\'appartient pas à votre entreprise.' }, { status: 403 });
         }
 
         const supabaseAdmin = getSupabaseServerClient();
@@ -110,6 +128,16 @@ export async function PATCH(req: NextRequest) {
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        // AUDIT LOG
+        const { data: { user: adminUser } } = await supabase.auth.getUser();
+        await supabaseAdmin.from('admin_actions_log').insert({
+            admin_id: adminUser?.id,
+            action_type: 'TOGGLE_USER_STATUS',
+            target_user_id: user_id,
+            company_id: targetUser.company_id,
+            metadata: { is_active }
+        });
 
         return NextResponse.json({ success: true });
     });

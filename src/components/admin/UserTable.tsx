@@ -65,22 +65,27 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
                                 </span>
                             </td>
                             <td className="p-4">
-                                <span className={`inline-block px-2 py-1 text-[11px] uppercase tracking-wider rounded-full font-bold ${u.is_active ? 'bg-success-green/10 text-success-green' : 'bg-error-red/10 text-error-red'}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-wider rounded-full font-bold border ${u.is_active ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                     {u.is_active ? 'Actif' : 'Désactivé'}
                                 </span>
                             </td>
                             <td className="p-4 text-right">
                                 <button
                                     onClick={() => toggleStatus(u)}
-                                    // Admins shouldn't casually lock themselves out or lock other super admins out from here.
-                                    disabled={togglingId === u.id || u.role === 'admin' || u.role === 'super_admin'}
-                                    className={`inline-flex items-center justify-center p-2 rounded-lg transition-all border ${(u.role === 'admin' || u.role === 'super_admin') ? 'opacity-30 border-transparent cursor-not-allowed' :
-                                            u.is_active ? 'text-error-red border-error-red hover:bg-error-red hover:text-white' : 'text-success-green border-success-green hover:bg-success-green hover:text-white'
-                                        }`}
+                                    // Admins shouldn't lock themselves or other admins unless they are super admins.
+                                    disabled={togglingId === u.id || (u.role === 'super_admin' && u.id !== togglingId)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${(u.role === 'super_admin') ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'} ${u.is_active ? 'bg-primary' : 'bg-gray-200'}`}
                                     title={u.is_active ? "Désactiver l'accès" : "Réactiver l'accès"}
                                 >
-                                    {togglingId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                        u.is_active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${u.is_active ? 'translate-x-6' : 'translate-x-1'}`}
+                                    />
+                                    {togglingId === u.id && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-full">
+                                            <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                        </div>
+                                    )}
                                 </button>
                             </td>
                         </tr>
