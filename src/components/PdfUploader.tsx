@@ -17,6 +17,12 @@ export default function PdfUploader() {
       return;
     }
 
+    // 10 MB limit
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Le document dépasse la taille maximale autorisée (10 Mo).');
+      return;
+    }
+
     setFileName(file.name);
     setStatus('uploading');
 

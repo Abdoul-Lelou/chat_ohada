@@ -9,7 +9,7 @@ import PDFParser from 'pdf2json';
 // Fonction utilitaire pour transformer pdf2json en Promise
 function extractTextFromPDF(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
-    const pdfParser = new PDFParser(null, 1); // 1 = Texte brut
+    const pdfParser = new (PDFParser as any)(null, 1); // 1 = Texte brut
 
     pdfParser.on("pdfParser_dataError", (errData: any) => {
       console.error(errData.parserError);
@@ -51,7 +51,7 @@ export async function processPdfToEmbeddings(base64String: string, caseId: strin
       const cleanChunk = chunk.replace(/\n+/g, ' ').trim();
 
       const { embedding } = await embed({
-        model: google.textEmbeddingModel('gemini-embedding-001'), 
+        model: google.textEmbeddingModel('gemini-embedding-001'),
         value: cleanChunk,
       });
 
@@ -59,7 +59,7 @@ export async function processPdfToEmbeddings(base64String: string, caseId: strin
       const { error: dbError } = await supabase.from('case_embeddings').insert({
         // STRATÉGIE DÉMO : Si caseId n'est pas un UUID valide, mets null 
         // ou assure-toi que l'ID existe dans la table 'cases'
-        case_id: null, 
+        case_id: null,
         content: cleanChunk,
         embedding: embedding,
         metadata: { source: 'pdf_upload', date: new Date().toISOString() }

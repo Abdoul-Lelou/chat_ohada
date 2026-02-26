@@ -51,17 +51,34 @@ export default function Auth({ onLogin }: AuthProps) {
 
             if (data.user) {
                 const profile = await fetchProfile(data.user.id);
-                // Fallback if profile doesn't exist yet or error
-                const userData = profile || {
-                    id: data.user.id,
-                    email: data.user.email,
-                    firstName: 'Utilisateur',
-                    lastName: '',
-                    plan: 'free',
-                    role: 'user'
+
+                if (!profile) {
+                    await supabase.auth.signOut();
+                    throw new Error('Profil introuvable ou incomplet.');
+                }
+
+                if (profile.is_active === false) {
+                    await supabase.auth.signOut();
+                    throw new Error('Votre compte a été désactivé.');
+                }
+
+                if (profile.role !== 'super_admin' && !profile.company_id) {
+                    await supabase.auth.signOut();
+                    throw new Error('Votre compte n’est associé à aucune entreprise. Veuillez contacter l’administrateur.');
+                }
+
+                const userData = {
+                    id: profile.id,
+                    email: profile.email || data.user.email,
+                    firstName: profile.first_name || 'Utilisateur',
+                    lastName: profile.last_name || '',
+                    plan: profile.plan || 'free',
+                    role: profile.role || 'user',
+                    company_id: profile.company_id,
+                    is_active: profile.is_active
                 };
 
-                onLogin(userData, userData.role === 'admin');
+                onLogin(userData, userData.role === 'admin' || userData.role === 'super_admin');
             }
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
