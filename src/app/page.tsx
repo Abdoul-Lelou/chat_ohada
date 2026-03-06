@@ -27,6 +27,7 @@ import { createClient } from '@/lib/supabase/client';
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
 import { UserManagementOverview } from '@/components/admin/UserManagementOverview';
 import ProfileMenu from '@/components/ProfileMenu';
+import CaseDetailModal from '@/components/CaseDetailModal';
 
 type Message = {
   id: string;
@@ -52,8 +53,11 @@ export default function OhadaChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isUserScrolling = useRef(false);
   const supabase = createClient();
 
   const { submit, object, isLoading: isStreaming, error: chatError } = experimental_useObject({
@@ -136,7 +140,13 @@ export default function OhadaChatPage() {
         if (!isMounted) return;
         if (profile) {
           setUser(profile);
-          setIsAdmin(profile.role === 'admin');
+          const isUserAdmin = profile.role === 'admin' || profile.role === 'super_admin';
+          setIsAdmin(isUserAdmin);
+
+          // Force le dashboard comme onglet par défaut pour les admins
+          if (isUserAdmin && activeTab === 'chat') {
+            setActiveTab('dashboard');
+          }
         }
 
         // Priorité Supabase pour l'historique
@@ -240,8 +250,19 @@ export default function OhadaChatPage() {
   }, [messages]); // We only trigger on messages change
 
 
-  // Scroll behavior now handled directly in handleSubmit and via UI structure
-  // Remontée automatique en haut gérée à la soumission.
+  // Scroll behavior handling
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    isUserScrolling.current = !isAtBottom;
+  };
+
+  useEffect(() => {
+    if (chatContainerRef.current && !isUserScrolling.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, object, isStreaming]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -251,10 +272,11 @@ export default function OhadaChatPage() {
     setUser(userData);
     setIsAdmin(admin);
     setActiveTab(admin ? 'dashboard' : 'chat');
-    setUser(userData);
-    setIsAdmin(admin);
-    setActiveTab(admin ? 'dashboard' : 'chat');
     showToast(admin ? 'Bienvenue Administrateur !' : `Bienvenue ${userData?.first_name || 'Utilisateur'} !`);
+  };
+
+  const handleUpdateUser = (updatedFields: Partial<any>) => {
+    setUser((prev: any) => ({ ...prev, ...updatedFields }));
   };
 
   const logout = async () => {
@@ -282,11 +304,8 @@ export default function OhadaChatPage() {
     // Ajout à la session actuelle : on "append" le message, on ne reset SURTOUT PAS.
     setMessages(prev => [...prev, userMessage]);
 
-    // Scroll to top as requested
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Anti-scroll bug: Remonter le chat (scroll bottom via scrollHeight)
-    // Cela garantit que la nouvelle question et le loader d'analyse sont visibles.
+    // Force le scroll en bas (réinitialise l'état utilisateur)
+    isUserScrolling.current = false;
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -320,7 +339,7 @@ export default function OhadaChatPage() {
     <div className="flex w-full h-screen overflow-hidden bg-light-bg font-montserrat">
       {/* SIDEBAR FOR CHAT HISTORY */}
       {user && !isAdmin && activeTab === 'chat' && (
-        <aside className="w-64 bg-[#1a1c23] border-r border-[#2d2f39] hidden md:flex flex-col text-white">
+        <aside className="w-64 h-full bg-[#1a1c23] border-r border-[#2d2f39] hidden md:flex flex-col text-white">
           <div className="p-4 border-b border-[#2d2f39]">
             <button className="btn btn-auth-primary w-full flex items-center justify-center gap-2" onClick={clearHistory}>
               <Plus className="w-4 h-4" /> NOUVEAU CHAT
@@ -365,52 +384,54 @@ export default function OhadaChatPage() {
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
         {/* HEADER */}
-        <header className={`header ${isAdmin ? 'header-admin' : ''}`}>
-          <div className="header-left">
-            <div className="header-logo"><Scale className="w-6 h-6 text-white" /></div>
-            <div className="header-title">
-              <h1 className="text-white">OHADA Legal Advisor</h1>
+        <header className="header flex items-center justify-between px-10 py-4 shadow-sm border-b border-white/10">
+          {/* Logo Title (Left) */}
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mr-3"><Scale className="w-5 h-5 text-white" /></div>
+            <div>
+              <h1 className="text-white font-bold text-lg leading-tight">Sovereign Legal Intelligence</h1>
               <p className="text-white opacity-80 uppercase tracking-widest text-[10px]">Assistance Juridique • Guinée</p>
             </div>
           </div>
 
-          <div className="header-center hidden md:flex">
-            <div className="nav-tabs">
+          {/* Navigation Links (Center) */}
+          <div className="flex-1 hidden md:flex justify-center">
+            <div className="flex items-center gap-6">
               {/* LIENS UTILISATEUR ET ADMIN AVEC FILTRE DE RÔLE STRICT */}
-              {user?.role !== 'admin' && user?.role !== 'super_admin' ? (
+              {user?.role === 'user' ? (
                 <>
-                  <button className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Assistant</button>
-                  <button className={`nav-tab ${activeTab === 'subscription' ? 'active' : ''}`} onClick={() => setActiveTab('subscription')}>Abonnement</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('chat')}>Assistant</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'subscription' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('subscription')}>Abonnement</button>
                 </>
               ) : user?.role === 'super_admin' ? (
                 <>
-                  <button className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Assistant</button>
-                  <button className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Tableau de bord</button>
-                  <button className={`nav-tab ${activeTab === 'knowledge' ? 'active' : ''}`} onClick={() => setActiveTab('knowledge')}>Base de Connaissances</button>
-                  <button className={`nav-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Utilisateurs</button>
-                  <button className={`nav-tab ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')}>Système</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('dashboard')}>Tableau de bord</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'knowledge' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('knowledge')}>Base de Connaissances</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('users')}>Utilisateurs</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'config' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('config')}>Système</button>
                 </>
-              ) : (
+              ) : user?.role === 'admin' ? (
                 <>
-                  <button className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Tableau de bord</button>
-                  <button className={`nav-tab ${activeTab === 'knowledge' ? 'active' : ''}`} onClick={() => setActiveTab('knowledge')}>Base de Connaissances</button>
-                  <button className={`nav-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Utilisateurs</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('dashboard')}>Tableau de bord</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'knowledge' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('knowledge')}>Base de Connaissances</button>
+                  <button className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`} onClick={() => setActiveTab('users')}>Utilisateurs</button>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
 
-          <div className="header-right gap-4">
+          {/* Profile/Actions (Right) */}
+          <div className="flex items-center gap-4">
             {!isAdmin && activeTab === 'chat' && (
-              <button className="header-btn" onClick={clearHistory}>
+              <button className="header-btn text-white/80 hover:text-white transition-colors flex items-center gap-2 text-sm" onClick={clearHistory}>
                 <Trash2 className="w-4 h-4" />
                 <span className="hidden lg:inline">Effacer</span>
               </button>
             )}
 
-            <div className="h-8 w-[1px] bg-white/10 hidden md:block mx-1"></div>
+            <div className="h-6 w-[1px] bg-white/20 hidden md:block mx-2"></div>
 
-            <ProfileMenu user={user} onLogout={logout} />
+            <ProfileMenu user={user} onLogout={logout} onUpdateUser={handleUpdateUser} />
           </div>
         </header>
 
@@ -423,7 +444,7 @@ export default function OhadaChatPage() {
               {activeTab === 'chat' && (
                 <div className="flex flex-col h-full">
                   {/* ZONE DES MESSAGES - STYLE GEMINI */}
-                  <div ref={chatContainerRef} className="chat-area flex-1 overflow-y-auto p-6 pb-32 flex flex-col gap-6 scroll-smooth"
+                  <div ref={chatContainerRef} onScroll={handleScroll} className="chat-area flex-1 overflow-y-auto p-6 pb-32 flex flex-col gap-6 scroll-smooth"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <style>{`.chat-area::-webkit-scrollbar { display: none; }`}</style>
 
@@ -475,7 +496,14 @@ export default function OhadaChatPage() {
                                           <FileText className="w-4 h-4" /> PRÉCÉDENTS (TABLE CASE)
                                         </div>
                                         {m.data.similar_cases.map((c: any, i: number) => (
-                                          <div key={i} className="bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-primary">
+                                          <div
+                                            key={i}
+                                            className="bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-primary hover:bg-gray-50 cursor-pointer transition-colors active:scale-[0.98]"
+                                            onClick={() => {
+                                              setSelectedCaseId(c.case_id);
+                                              setIsCaseModalOpen(true);
+                                            }}
+                                          >
                                             <div className="font-bold text-sm">{c.title}</div>
                                             <div className="text-xs text-text-gray mt-1 italic">{c.reason}</div>
                                           </div>
@@ -532,7 +560,14 @@ export default function OhadaChatPage() {
                                         <FileText className="w-4 h-4" /> PRÉCÉDENTS (TABLE CASE)
                                       </div>
                                       {object.data.similar_cases.map((c: any, i: number) => (
-                                        <div key={i} className="bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-primary">
+                                        <div
+                                          key={i}
+                                          className="bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-primary hover:bg-gray-50 cursor-pointer transition-colors"
+                                          onClick={() => {
+                                            setSelectedCaseId(c.case_id);
+                                            setIsCaseModalOpen(true);
+                                          }}
+                                        >
                                           <div className="font-bold text-sm">{c.title}</div>
                                           <div className="text-xs text-text-gray mt-1 italic">{c.reason}</div>
                                         </div>
@@ -686,7 +721,12 @@ export default function OhadaChatPage() {
             </div>
           )
         }
-      </div >
-    </div >
+        <CaseDetailModal
+          isOpen={isCaseModalOpen}
+          onClose={() => setIsCaseModalOpen(false)}
+          caseId={selectedCaseId}
+        />
+      </div>
+    </div>
   );
 }

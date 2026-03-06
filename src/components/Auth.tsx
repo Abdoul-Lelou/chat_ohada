@@ -9,15 +9,29 @@ interface AuthProps {
 }
 
 export default function Auth({ onLogin }: AuthProps) {
-    const [currentPage, setCurrentPage] = useState<'login' | 'register'>('login');
+    const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'forgot-password' | 'update-password'>('login');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const supabase = createClient();
 
-    const showPage = (page: 'login' | 'register') => {
+    const showPage = (page: 'login' | 'register' | 'forgot-password' | 'update-password') => {
         setCurrentPage(page);
         setError(null);
+        setSuccessMessage(null);
     };
+
+    React.useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setCurrentPage('update-password');
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
 
     const fetchProfile = async (userId: string) => {
         const { data: profile, error } = await supabase
@@ -82,6 +96,59 @@ export default function Auth({ onLogin }: AuthProps) {
             }
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+        setSuccessMessage(null);
+
+        const email = (document.getElementById('forgotEmail') as HTMLInputElement).value;
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/auth/callback?next=/`,
+            });
+
+            if (error) throw error;
+
+            setSuccessMessage('Un email de réinitialisation a été envoyé à votre adresse.');
+        } catch (err: any) {
+            setError(err.message || 'Une erreur est survenue.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+
+        const password = (document.getElementById('newPassword') as HTMLInputElement).value;
+        const confirmPassword = (document.getElementById('confirmNewPassword') as HTMLInputElement).value;
+
+        if (password !== confirmPassword) {
+            setError('Les mots de passe ne correspondent pas.');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const { error } = await supabase.auth.updateUser({ password });
+
+            if (error) throw error;
+
+            setSuccessMessage('Votre mot de passe a été mis à jour avec succès.');
+            setTimeout(() => {
+                showPage('login');
+            }, 3000);
+        } catch (err: any) {
+            setError(err.message || 'Une erreur est survenue.');
         } finally {
             setIsLoading(false);
         }
@@ -153,6 +220,117 @@ export default function Auth({ onLogin }: AuthProps) {
         }
     };
 
+    if (currentPage === 'forgot-password') {
+        return (
+            <div className="auth-container" id="forgotPasswordPage">
+                <div className="auth-box">
+                    <div className="auth-logo">
+                        <div className="auth-logo-icon">
+                            <Scale className="w-9 h-9 text-white" />
+                        </div>
+                        <h1>Sovereign Legal Intelligence</h1>
+                        <p>Assistance Juridique • Guinée</p>
+                    </div>
+                    <div className="auth-title">
+                        <h2>Réinitialisation</h2>
+                        <p>Entrez votre email pour recevoir un lien</p>
+                    </div>
+
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-10">
+                            <div className="loading-spinner">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <p className="mt-4 text-text-gray text-sm">Envoi en cours...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {error && (
+                                <div className="mb-4 p-3 bg-red-50 text-error-red text-sm rounded-lg border border-red-100">
+                                    {error}
+                                </div>
+                            )}
+                            {successMessage && (
+                                <div className="mb-4 p-3 bg-green-50 text-success-green text-sm rounded-lg border border-green-100">
+                                    {successMessage}
+                                </div>
+                            )}
+                            {!successMessage && (
+                                <form id="forgotForm" onSubmit={handleForgotPassword}>
+                                    <div className="form-group">
+                                        <label className="form-label">Adresse email</label>
+                                        <input type="email" className="form-input" id="forgotEmail" placeholder="vous@cabinet.gn" required />
+                                    </div>
+                                    <button type="submit" className="btn btn-auth-primary">Envoyer le lien</button>
+                                </form>
+                            )}
+                            <p className="auth-switch">
+                                <a onClick={() => showPage('login')} className="cursor-pointer flex items-center justify-center gap-1 mt-4">
+                                    Retour à la connexion
+                                </a>
+                            </p>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (currentPage === 'update-password') {
+        return (
+            <div className="auth-container" id="updatePasswordPage">
+                <div className="auth-box">
+                    <div className="auth-logo">
+                        <div className="auth-logo-icon">
+                            <Scale className="w-9 h-9 text-white" />
+                        </div>
+                        <h1>Sovereign Legal Intelligence</h1>
+                        <p>Assistance Juridique • Guinée</p>
+                    </div>
+                    <div className="auth-title">
+                        <h2>Nouveau mot de passe</h2>
+                        <p>Sécurisez votre compte</p>
+                    </div>
+
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-10">
+                            <div className="loading-spinner">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <p className="mt-4 text-text-gray text-sm">Mise à jour en cours...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {error && (
+                                <div className="mb-4 p-3 bg-red-50 text-error-red text-sm rounded-lg border border-red-100">
+                                    {error}
+                                </div>
+                            )}
+                            {successMessage && (
+                                <div className="mb-4 p-3 bg-green-50 text-success-green text-sm rounded-lg border border-green-100">
+                                    {successMessage}
+                                </div>
+                            )}
+                            {!successMessage && (
+                                <form id="updateForm" onSubmit={handleUpdatePassword}>
+                                    <div className="form-group">
+                                        <label className="form-label">Nouveau mot de passe</label>
+                                        <input type="password" className="form-input" id="newPassword" placeholder="••••••••" required minLength={6} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Confirmer le nouveau mot de passe</label>
+                                        <input type="password" className="form-input" id="confirmNewPassword" placeholder="••••••••" required minLength={6} />
+                                    </div>
+                                    <button type="submit" className="btn btn-auth-primary">Mettre à jour le mot de passe</button>
+                                </form>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     if (currentPage === 'login') {
         return (
             <div className="auth-container" id="loginPage">
@@ -161,7 +339,7 @@ export default function Auth({ onLogin }: AuthProps) {
                         <div className="auth-logo-icon">
                             <Scale className="w-9 h-9 text-white" />
                         </div>
-                        <h1>OHADA Legal Advisor</h1>
+                        <h1>Sovereign Legal Intelligence</h1>
                         <p>Assistance Juridique • Guinée</p>
                     </div>
                     <div className="auth-title">
@@ -199,6 +377,12 @@ export default function Auth({ onLogin }: AuthProps) {
                                 <button type="submit" className="btn btn-auth-primary">Se connecter</button>
                             </form>
 
+                            <div className="mt-4 text-center">
+                                <a onClick={() => showPage('forgot-password')} className="text-sm text-primary hover:underline cursor-pointer font-medium">
+                                    Mot de passe oublié ?
+                                </a>
+                            </div>
+
                             {/* <div className="auth-divider"><span>Ou</span></div> */}
 
                             {/* <p className="auth-switch">
@@ -218,7 +402,7 @@ export default function Auth({ onLogin }: AuthProps) {
                     <div className="auth-logo-icon">
                         <Scale className="w-9 h-9 text-white" />
                     </div>
-                    <h1>OHADA Legal Advisor</h1>
+                    <h1>Sovereign Legal Intelligence</h1>
                     <p>Assistance Juridique • Guinée</p>
                 </div>
                 <div className="auth-title">

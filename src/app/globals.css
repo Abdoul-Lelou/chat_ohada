@@ -451,20 +451,16 @@
         background: var(--primary) !important;
     }
 
-    .header-admin h1,
-    .header-admin p,
-    .header-admin .nav-tab {
+    .header-admin>div>h1,
+    .header-admin>div>div>h1,
+    .header-admin>div>p,
+    .header-admin>div>div>p {
         color: rgba(255, 255, 255, 0.7) !important;
     }
 
-    .header-admin h1 {
+    .header-admin>div>h1,
+    .header-admin>div>div>h1 {
         color: var(--white) !important;
-    }
-
-    .header-admin .nav-tab.active {
-        background: var(--white) !important;
-        color: var(--primary) !important;
-        box-shadow: var(--shadow-sm);
     }
 
     /* ADMIN STATS & TABLES */
@@ -960,7 +956,7 @@
 
     /* INPUT AREA */
     .input-area {
-        position: fixed;
+        position: absolute;
         bottom: 0;
         left: 0;
         right: 0;

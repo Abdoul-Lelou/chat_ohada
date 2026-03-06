@@ -10,12 +10,17 @@ interface ProfileSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: any;
+    onUpdateUser?: (updatedData: any) => void;
 }
 
-export default function ProfileSettingsModal({ isOpen, onClose, user }: ProfileSettingsModalProps) {
+export default function ProfileSettingsModal({ isOpen, onClose, user, onUpdateUser }: ProfileSettingsModalProps) {
     const [isUploading, setIsUploading] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [firstName, setFirstName] = useState(user.first_name || user.firstName || '');
+    const [lastName, setLastName] = useState(user.last_name || user.lastName || '');
+    const [isSavingInfo, setIsSavingInfo] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const supabase = createClient();
@@ -58,9 +63,15 @@ export default function ProfileSettingsModal({ isOpen, onClose, user }: ProfileS
             const finalUrl = `${publicUrl}?t=${Date.now()}`;
 
             // 3. Update Profile via API (Double-layer security check on backend)
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
             const response = await fetch('/api/profile/update', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ avatar_url: finalUrl })
             });
 
@@ -71,14 +82,51 @@ export default function ProfileSettingsModal({ isOpen, onClose, user }: ProfileS
 
             // 4. Invalidate Queries
             await queryClient.invalidateQueries({ queryKey: ['profile'] });
-            // On rafraîchit aussi l'utilisateur global si besoin
-            window.location.reload(); // Rechargement simple pour synchroniser partout
+
+            if (onUpdateUser) {
+                onUpdateUser({ avatar_url: finalUrl });
+            }
+            onClose();
 
         } catch (err: any) {
             console.error("Upload Error:", err);
             setError(err.message || "Erreur lors du téléchargement");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleSaveInfo = async () => {
+        setIsSavingInfo(true);
+        setError(null);
+        try {
+            const { data } = await supabase.auth.getSession();
+            const token = data.session?.access_token;
+
+            const response = await fetch('/api/profile/update', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ first_name: firstName, last_name: lastName })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Erreur lors de la mise à jour du profil");
+            }
+
+            await queryClient.invalidateQueries({ queryKey: ['profile'] });
+
+            if (onUpdateUser) {
+                onUpdateUser({ first_name: firstName, last_name: lastName });
+            }
+            onClose();
+        } catch (err: any) {
+            setError(err.message || "Erreur lors de l'enregistrement");
+        } finally {
+            setIsSavingInfo(false);
         }
     };
 
@@ -143,19 +191,42 @@ export default function ProfileSettingsModal({ isOpen, onClose, user }: ProfileS
 
                     {/* USER INFO */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 focus-within:border-primary/50 transition-colors">
                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Prénom</label>
-                            <p className="text-sm font-bold text-dark">{user.first_name || user.firstName}</p>
+                            <input
+                                type="text"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                className="w-full bg-transparent text-sm font-bold text-dark outline-none"
+                            />
                         </div>
-                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 focus-within:border-primary/50 transition-colors">
                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nom</label>
-                            <p className="text-sm font-bold text-dark">{user.last_name || user.lastName}</p>
+                            <input
+                                type="text"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                className="w-full bg-transparent text-sm font-bold text-dark outline-none"
+                            />
                         </div>
                         <div className="col-span-2 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Email</label>
                             <p className="text-sm font-bold text-dark">{user.email}</p>
                         </div>
                     </div>
+
+                    {(firstName !== (user.first_name || user.firstName || '') || lastName !== (user.last_name || user.lastName || '')) && (
+                        <div className="flex justify-end mt-2">
+                            <button
+                                onClick={handleSaveInfo}
+                                disabled={isSavingInfo}
+                                className="bg-primary text-white hover:bg-primary-dark px-6 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isSavingInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                Enregistrer les modifications
+                            </button>
+                        </div>
+                    )}
 
                     {/* SECURITY ACTIONS */}
                     <div className="pt-4 border-t border-gray-50">

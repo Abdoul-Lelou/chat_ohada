@@ -3,7 +3,7 @@
 import React from 'react';
 import { UserProfile } from '@/types/admin';
 import { useUpdateAdminUserStatus } from '@/hooks/useAdminUsers';
-import { Loader2, UserX, UserCheck } from 'lucide-react';
+import { Loader2, UserX, UserCheck, Power, PowerOff, Edit2, Trash2 } from 'lucide-react';
 
 interface UserTableProps {
     users: UserProfile[];
@@ -42,12 +42,12 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
                         <th className="p-4 font-semibold">Utilisateur</th>
                         <th className="p-4 font-semibold">Rôle</th>
                         <th className="p-4 font-semibold">Statut</th>
-                        <th className="p-4 font-semibold text-right">Modifier Accès</th>
+                        <th className="p-4 font-semibold text-center w-64">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-border-light">
                     {users.map((u) => (
-                        <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                        <tr key={u.id} className={`hover:bg-gray-50/50 transition-colors ${!u.is_active ? 'opacity-50 grayscale bg-gray-50/30 italic' : ''}`}>
                             <td className="p-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold shadow-sm">
@@ -65,28 +65,29 @@ export default function UserTable({ users, isLoading }: UserTableProps) {
                                 </span>
                             </td>
                             <td className="p-4">
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-wider rounded-full font-bold border ${u.is_active ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-wider rounded-full font-bold border ${u.is_active ? 'bg-green-50 text-green-700 border-green-100' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></span>
                                     {u.is_active ? 'Actif' : 'Désactivé'}
                                 </span>
                             </td>
-                            <td className="p-4 text-right">
-                                <button
-                                    onClick={() => toggleStatus(u)}
-                                    // Admins shouldn't lock themselves or other admins unless they are super admins.
-                                    disabled={togglingId === u.id || (u.role === 'super_admin' && u.id !== togglingId)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${(u.role === 'super_admin') ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'} ${u.is_active ? 'bg-primary' : 'bg-gray-200'}`}
-                                    title={u.is_active ? "Désactiver l'accès" : "Réactiver l'accès"}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${u.is_active ? 'translate-x-6' : 'translate-x-1'}`}
-                                    />
-                                    {togglingId === u.id && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-full">
-                                            <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                                        </div>
-                                    )}
-                                </button>
+                            <td className="p-4">
+                                <div className="flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={() => toggleStatus(u)}
+                                        disabled={togglingId === u.id || (u.role === 'super_admin' && u.id !== togglingId)}
+                                        className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold relative ${u.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'} ${(u.role === 'super_admin') ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        title={u.is_active ? "Désactiver l'accès" : "Activer l'accès"}
+                                    >
+                                        {togglingId === u.id ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : u.is_active ? (
+                                            <PowerOff className="w-3.5 h-3.5" />
+                                        ) : (
+                                            <Power className="w-3.5 h-3.5" />
+                                        )}
+                                        <span>{u.is_active ? 'Désactiver' : 'Activer'}</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}

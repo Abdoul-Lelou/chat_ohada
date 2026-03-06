@@ -11,13 +11,16 @@ export function UserManagementOverview({ user }: { user: any }) {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <div className="section-header mb-8 flex flex-col md:flex-row md:items-center justify-between">
+            <div className="section-header flex flex-col md:flex-row md:items-center justify-between mb-6">
                 <div>
                     <h2 className="text-3xl font-bold font-headline tracking-tight text-primary">Gestion des Utilisateurs</h2>
                     <p className="text-text-gray mt-2 flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-success-green" />
                         Gérez les accès de vos collaborateurs sécuritairement.
                     </p>
+                </div>
+                <div className="mt-4 md:mt-0">
+                    {user?.role !== 'super_admin' && <UserForm />}
                 </div>
             </div>
 
@@ -29,8 +32,7 @@ export function UserManagementOverview({ user }: { user: any }) {
             )}
 
             <div className="space-y-6">
-                <UserForm />
-                <UserTable users={data?.users || []} isLoading={isLoading} />
+                <UserTable users={data?.users?.filter(u => u.id !== user?.id) || []} isLoading={isLoading} />
             </div>
         </div>
     );

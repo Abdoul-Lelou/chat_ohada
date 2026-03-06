@@ -85,3 +85,43 @@ export async function generateLegalGuidance(prompt: string) {
 
   return object;
 }
+
+export async function getCaseDetail(caseId: string) {
+  const supabase = getSupabaseServerClient();
+
+  console.log('Fetching details for caseIdentifier:', caseId);
+
+  // 1. Try fetching by exact UUID if it looks like one
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(caseId);
+
+  if (isUUID) {
+    const { data, error } = await supabase
+      .from('cases')
+      .select('id, title, ohada_act, case_type, procedure, court, country, decision_date, summary, full_text, fts')
+      .eq('id', caseId)
+      .single();
+
+    if (!error && data) return data;
+  }
+
+  // 2. Fallback: Search by title match if it's a human-readable ID
+  console.log('UUID fetch failed or not a UUID, trying title search for:', caseId);
+
+  const { data: searchData, error: searchError } = await supabase
+    .from('cases')
+    .select('id, title, ohada_act, case_type, procedure, court, country, decision_date, summary, full_text, fts')
+    .ilike('title', `%${caseId}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (searchError) {
+    console.error('Search by title failed:', searchError);
+  }
+
+  if (searchData) return searchData;
+
+  // 3. One more attempt: Search in fts or other text fields if needed
+  // But searching title is usually enough for IDs like "CCJA-2018-154" if they are in the title
+
+  return null;
+}

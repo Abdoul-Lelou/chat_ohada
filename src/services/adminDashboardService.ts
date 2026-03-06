@@ -46,5 +46,12 @@ export const adminDashboardService = {
             method: 'PATCH',
             body: JSON.stringify(payload)
         });
+    },
+
+    async createCompany(supabaseClient: any, companyData: any): Promise<any> {
+        return this.fetchWithAuth('/api/admin/companies', supabaseClient, {
+            method: 'POST',
+            body: JSON.stringify(companyData)
+        });
     }
 };

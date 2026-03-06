@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OHADA Legal Advisor - Thiam & Associés',
+  title: 'Sovereign Legal Intelligence - Thiam & Associés',
   description: 'AI-powered OHADA legal assistant for Guinea legal documentation and case matching.',
 };
 

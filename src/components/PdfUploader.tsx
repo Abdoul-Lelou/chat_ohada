@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Upload, FileText, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { processPdfToEmbeddings } from '@/ai/process-pdf';
 
 export default function PdfUploader() {
@@ -41,48 +41,52 @@ export default function PdfUploader() {
   };
 
   return (
-    <div className="upload-compact flex items-center gap-3 w-full">
-      <label className="upload-dropzone-compact flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-off-white transition-all w-full border border-dashed border-border-light">
-        <div className="flex items-center gap-3 flex-1">
+    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm w-full">
+      <h3 className="text-lg font-bold text-primary mb-4">Ajouter un document à la Base de Connaissances</h3>
+      <label className="flex flex-col justify-center items-center gap-4 bg-gray-50 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-colors rounded-xl w-full h-32 cursor-pointer relative overflow-hidden group">
+        <div className="flex flex-col items-center justify-center text-center p-4">
           {status === 'idle' && (
             <>
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Upload className="w-4 h-4" />
+              <div className="w-12 h-12 rounded-full bg-blue-100/50 group-hover:bg-blue-200/50 flex items-center justify-center text-blue-600 mb-2 transition-colors">
+                <Upload className="w-6 h-6" />
               </div>
-              <span className="text-sm font-medium text-text-gray">Ajouter un document PDF au dossier</span>
+              <span className="text-sm font-bold text-gray-700">Cliquez ou glissez un fichier PDF ici</span>
+              <span className="text-xs text-gray-500 mt-1">Maximum 10 Mo</span>
             </>
           )}
 
           {status === 'uploading' && (
             <>
-              <Loader2 className="w-5 h-5 animate-spin text-accent" />
-              <span className="text-sm font-medium text-primary truncate">Analyse de {fileName}...</span>
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+              <span className="text-sm font-bold text-blue-700">Analyse et intégration en cours...</span>
+              <span className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">{fileName}</span>
             </>
           )}
 
           {status === 'success' && (
             <>
-              <CheckCircle className="w-5 h-5 text-success-green" />
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-success-green">Document intégré !</span>
-                <span className="text-[10px] text-text-light">Prêt pour l'analyse</span>
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 mb-2">
+                <CheckCircle className="w-6 h-6" />
               </div>
+              <span className="text-sm font-bold text-green-700">Document intégré avec succès !</span>
               <button
                 onClick={(e) => { e.preventDefault(); setStatus('idle'); }}
-                className="ml-auto text-xs text-primary underline px-2"
+                className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800 underline transition-colors"
               >
-                + Nouveau
+                Intégrer un autre document
               </button>
             </>
           )}
 
           {status === 'error' && (
             <>
-              <Upload className="w-5 h-5 text-error-red" />
-              <span className="text-sm text-error-red">Erreur d'intégration</span>
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-2">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <span className="text-sm font-bold text-red-700">Erreur lors de l'intégration</span>
               <button
                 onClick={(e) => { e.preventDefault(); setStatus('idle'); }}
-                className="ml-auto text-xs text-text-light underline"
+                className="mt-2 text-xs font-semibold text-gray-600 hover:text-gray-800 underline transition-colors"
               >
                 Réessayer
               </button>

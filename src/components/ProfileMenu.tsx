@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Shield, LogOut, ChevronDown, Check, AlertCircle, Settings } from 'lucide-react';
+import { User, Shield, LogOut, ChevronDown, Check, AlertCircle, Settings, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ProfileSettingsModal from './ProfileSettingsModal';
 
 interface ProfileMenuProps {
     user: any;
     onLogout: () => void;
+    onUpdateUser?: (updatedData: any) => void;
 }
 
-export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
+export default function ProfileMenu({ user, onLogout, onUpdateUser }: ProfileMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -26,18 +27,22 @@ export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const initials = ((user?.first_name?.[0] || user?.firstName?.[0] || '') +
-        (user?.last_name?.[0] || user?.lastName?.[0] || '')).toUpperCase() || '?';
+    const fn = user?.first_name || user?.firstName;
+    const ln = user?.last_name || user?.lastName;
+    const isLoadingName = !fn || !ln;
+    const initials = !isLoadingName ? (fn[0] + ln[0]).toUpperCase() : '';
 
     return (
         <div className="relative" ref={menuRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors border border-white/20"
+                className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors"
             >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-primary flex items-center justify-center text-white text-xs font-bold shadow-inner">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
                     {user?.avatar_url ? (
                         <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : isLoadingName ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                         <span>{initials}</span>
                     )}
@@ -46,13 +51,19 @@ export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-4 py-2 border-b border-gray-50 mb-1">
-                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Connecté en tant que</p>
-                        <p className="text-sm font-bold text-gray-900 truncate">
-                            {user?.first_name || user?.firstName} {user?.last_name || user?.lastName}
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-[9999] animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-4 py-3 border-b border-gray-100 mb-1 bg-gray-50/50 text-left">
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#4B5563' }}>Connecté en tant que</p>
+                        <p className="text-base font-headline font-bold truncate flex items-center" style={{ color: '#111827' }}>
+                            {isLoadingName ? (
+                                <span className="flex items-center gap-2 text-sm italic" style={{ color: '#4B5563' }}><Loader2 className="w-3 h-3 animate-spin flex-shrink-0" /> Synchronisation...</span>
+                            ) : (
+                                <span>{fn} {ln}</span>
+                            )}
                         </p>
-                        <p className="text-[10px] text-primary font-bold uppercase">{user?.role || 'Utilisateur'}</p>
+                        <p className="text-xs font-bold uppercase mt-0.5" style={{ color: '#111827' }}>
+                            {user?.role === 'super_admin' ? 'SUPER ADMIN' : user?.role === 'admin' ? 'ADMIN' : 'USER'}
+                        </p>
                     </div>
 
                     <button
@@ -80,6 +91,7 @@ export default function ProfileMenu({ user, onLogout }: ProfileMenuProps) {
                     isOpen={isSettingsOpen}
                     onClose={() => setIsSettingsOpen(false)}
                     user={user}
+                    onUpdateUser={onUpdateUser}
                 />
             )}
         </div>
